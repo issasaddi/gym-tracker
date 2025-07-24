@@ -47,8 +47,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- PWA metadata -->
   <meta name="theme-color" content="#2563eb">
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="icon.png">
+  <link rel="manifest" href="/gym-tracker/manifest.json">
+  <link rel="icon" href="/gym-tracker/icon.png">
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
   <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
@@ -76,11 +76,39 @@
       const sessionList = document.getElementById('sessionList');
       sessionCount.textContent = sessions.length;
       sessionList.innerHTML = '';
-      sessions.forEach(date => {
+      sessions.forEach((date, index) => {
         const li = document.createElement('li');
-        li.textContent = new Date(date).toLocaleDateString();
+        li.className = 'flex justify-between items-center';
+        li.innerHTML = `
+          <span>${new Date(date).toLocaleDateString()}</span>
+          <button class="edit-btn text-blue-600 hover:text-blue-800 text-sm" data-index="${index}">Edit</button>
+        `;
         sessionList.appendChild(li);
       });
+
+      // Add event listeners for edit buttons
+      document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const index = btn.getAttribute('data-index');
+          const newDate = prompt('Enter new date (YYYY-MM-DD):', new Date(sessions[index]).toISOString().split('T')[0]);
+          if (newDate && isValidDate(newDate)) {
+            const [year, month, day] = newDate.split('-');
+            sessions[index] = new Date(year, month - 1, day).toISOString();
+            localStorage.setItem('gymSessions', JSON.stringify(sessions));
+            updateUI();
+          } else if (newDate) {
+            alert('Invalid date format. Use YYYY-MM-DD (e.g., 2025-07-23).');
+          }
+        });
+      });
+    }
+
+    // Validate date format
+    function isValidDate(dateString) {
+      const regex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!regex.test(dateString)) return false;
+      const date = new Date(dateString);
+      return date instanceof Date && !isNaN(date);
     }
 
     // Log a new session
@@ -104,7 +132,7 @@
 
     // Register service worker for PWA
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(err => console.error('Service Worker registration failed:', err));
+      navigator.serviceWorker.register('/gym-tracker/sw.js').catch(err => console.error('Service Worker registration failed:', err));
     }
   </script>
 </body>
