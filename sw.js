@@ -2,9 +2,11 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open('gym-tracker-v1').then(cache => {
       return cache.addAll([
-        'index.html',
-        'manifest.json',
-        'icon.png'
+        '/gym-tracker/',
+        '/gym-tracker/index.html',
+        '/gym-tracker/manifest.json',
+        '/gym-tracker/icon.png',
+        '/gym-tracker/output.css'
       ]);
     })
   );
