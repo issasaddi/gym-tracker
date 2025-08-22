@@ -1,50 +1,11 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gym Session Tracker</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Local Tailwind CSS -->
+  <link href="/gym-tracker/output.css" rel="stylesheet">
   <!-- PWA metadata -->
   <meta name="theme-color" content="#2563eb">
   <link rel="manifest" href="/gym-tracker/manifest.json">
@@ -81,59 +42,4 @@
         li.className = 'flex justify-between items-center';
         li.innerHTML = `
           <span>${new Date(date).toLocaleDateString()}</span>
-          <button class="edit-btn text-blue-600 hover:text-blue-800 text-sm" data-index="${index}">Edit</button>
-        `;
-        sessionList.appendChild(li);
-      });
-
-      // Add event listeners for edit buttons
-      document.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const index = btn.getAttribute('data-index');
-          const newDate = prompt('Enter new date (YYYY-MM-DD):', new Date(sessions[index]).toISOString().split('T')[0]);
-          if (newDate && isValidDate(newDate)) {
-            const [year, month, day] = newDate.split('-');
-            sessions[index] = new Date(year, month - 1, day).toISOString();
-            localStorage.setItem('gymSessions', JSON.stringify(sessions));
-            updateUI();
-          } else if (newDate) {
-            alert('Invalid date format. Use YYYY-MM-DD (e.g., 2025-07-23).');
-          }
-        });
-      });
-    }
-
-    // Validate date format
-    function isValidDate(dateString) {
-      const regex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!regex.test(dateString)) return false;
-      const date = new Date(dateString);
-      return date instanceof Date && !isNaN(date);
-    }
-
-    // Log a new session
-    document.getElementById('logSession').addEventListener('click', () => {
-      sessions.push(new Date().toISOString());
-      localStorage.setItem('gymSessions', JSON.stringify(sessions));
-      updateUI();
-    });
-
-    // Clear all sessions
-    document.getElementById('clearSessions').addEventListener('click', () => {
-      if (confirm('Are you sure you want to clear all sessions?')) {
-        sessions = [];
-        localStorage.setItem('gymSessions', JSON.stringify(sessions));
-        updateUI();
-      }
-    });
-
-    // Initialize UI
-    updateUI();
-
-    // Register service worker for PWA
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/gym-tracker/sw.js').catch(err => console.error('Service Worker registration failed:', err));
-    }
-  </script>
-</body>
-</html>
+          <button class="edit-btn text-blue-600 hover:text-blue-800 text
