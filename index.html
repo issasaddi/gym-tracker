@@ -42,4 +42,95 @@
         li.className = 'flex justify-between items-center';
         li.innerHTML = `
           <span>${new Date(date).toLocaleDateString()}</span>
-          <button class="edit-btn text-blue-600 hover:text-blue-800 text
+          <button class="edit-btn text-blue-600 hover:text-blue-800 text-sm" data-index="${index}">Edit</button>
+        `;
+        sessionList.appendChild(li);
+      });
+
+      // Add event listeners for edit buttons
+      document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const index = btn.getAttribute('data-index');
+          const newDate = prompt('Enter new date (YYYY-MM-DD):', new Date(sessions[index]).toISOString().split('T')[0]);
+          if (newDate && isValidDate(newDate)) {
+            const [year, month, day] = newDate.split('-');
+            sessions[index] = new Date(year, month - 1, day).toISOString();
+            localStorage.setItem('gymSessions', JSON.stringify(sessions));
+            updateUI();
+          } else if (newDate) {
+            alert('Invalid date format. Use YYYY-MM-DD (e.g., 2025-07-23).');
+          }
+        });
+      });
+
+      // Check if sessions reached 12 and prompt for payment
+      if (sessions.length >= 12 && !localStorage.getItem('paymentConfirmed')) {
+        const confirmed = confirm('You have reached 12 sessions. Have you paid 650RON to your trainer?');
+        if (confirmed) {
+          // Save the 12 sessions to a file
+          const fileContent = sessions.slice(0, 12).map(date => new Date(date).toLocaleDateString()).join('\n');
+          const blob = new Blob([fileContent], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `gym_sessions_${new Date().toISOString().split('T')[0]}.txt`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          // Reset sessions and mark payment as confirmed (temporarily, until next cycle)
+          sessions = sessions.slice(12); // Keep any extra sessions if more than 12
+          localStorage.setItem('gymSessions', JSON.stringify(sessions));
+          localStorage.removeItem('paymentConfirmed'); // Reset for next cycle
+          updateUI();
+        } else {
+          // If no, set a flag to not prompt again until reload or new session
+          localStorage.setItem('paymentConfirmed', 'pending');
+        }
+      } else if (sessions.length < 12) {
+        localStorage.removeItem('paymentConfirmed');
+      }
+    }
+
+    // Validate date format
+    function isValidDate(dateString) {
+      const regex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!regex.test(dateString)) return false;
+      const date = new Date(dateString);
+      return date instanceof Date && !isNaN(date);
+    }
+
+    // Log a new session
+    document.getElementById('logSession').addEventListener('click', () => {
+      sessions.push(new Date().toISOString());
+      localStorage.setItem('gymSessions', JSON.stringify(sessions));
+      // If pending, allow prompt again after new log
+      if (localStorage.getItem('paymentConfirmed') === 'pending' && sessions.length >= 12) {
+        localStorage.removeItem('paymentConfirmed');
+      }
+      updateUI();
+    });
+
+    // Clear all sessions
+    document.getElementById('clearSessions').addEventListener('click', () => {
+      if (confirm('Are you sure you want to clear all sessions?')) {
+        sessions = [];
+        localStorage.setItem('gymSessions', JSON.stringify(sessions));
+        localStorage.removeItem('paymentConfirmed');
+        updateUI();
+      }
+    });
+
+    // Initialize UI
+    updateUI();
+
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/gym-tracker/sw.js', { scope: '/gym-tracker/' })
+        .then(registration => console.log('Service Worker registered with scope:', registration.scope))
+        .catch(err => console.error('Service Worker registration failed:', err));
+    }
+  </script>
+</body>
+</html>
