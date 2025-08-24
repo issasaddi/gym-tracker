@@ -23,11 +23,18 @@
       Clear All Sessions
     </button>
     <button id="viewArchives" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 mb-4">
-      View Archives
+      Show/Hide Archives
     </button>
     <h2 class="text-lg font-semibold mb-2">Session History</h2>
     <ul id="sessionList" class="list-disc pl-5 max-h-60 overflow-y-auto"></ul>
+
+    <div id="archivesContainer" class="hidden mt-4">
+        <h2 class="text-lg font-semibold mb-2">Archived Sessions</h2>
+        <ul id="archiveList" class="list-disc pl-5 max-h-60 overflow-y-auto">
+            </ul>
+    </div>
   </div>
+
   <script>
     // Load sessions and archives from localStorage
     let sessions = JSON.parse(localStorage.getItem('gymSessions')) || [];
@@ -69,14 +76,14 @@
       if (sessions.length >= 12 && !localStorage.getItem('paymentConfirmed')) {
         const confirmed = confirm('You have reached 12 sessions. Have you paid 650RON to your trainer?');
         if (confirmed) {
-          // Archive the 12 sessions
           const archiveDate = new Date().toISOString().split('T')[0];
-          const archivedData = sessions.slice(0, 12).map(date => new Date(date).toLocaleDateString()).join('\n');
-          archivedSessions.push({ date: archiveDate, data: archivedData });
+          // Keep the raw data for viewing, and a formatted version for the text file
+          const rawData = sessions.slice(0, 12); 
+          const formattedData = rawData.map(date => new Date(date).toLocaleDateString()).join('\n');
+          archivedSessions.push({ date: archiveDate, data: formattedData });
           localStorage.setItem('archivedSessions', JSON.stringify(archivedSessions));
 
-          // Optionally download the file for the user
-          const blob = new Blob([archivedData], { type: 'text/plain' });
+          const blob = new Blob([formattedData], { type: 'text/plain' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
@@ -85,9 +92,8 @@
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
-
-          // Reset sessions and mark payment as confirmed (temporarily, until next cycle)
-          sessions = sessions.slice(12); // Keep any extra sessions if more than 12
+          
+          sessions = sessions.slice(12);
           localStorage.setItem('gymSessions', JSON.stringify(sessions));
           localStorage.removeItem('paymentConfirmed');
           updateUI();
@@ -127,31 +133,35 @@
       }
     });
 
-    // View and download archives
+    // MODIFIED: View and link to archives
     document.getElementById('viewArchives').addEventListener('click', () => {
+      const archivesContainer = document.getElementById('archivesContainer');
+      const archiveList = document.getElementById('archiveList');
+
       if (archivedSessions.length === 0) {
         alert('No archived sessions available.');
         return;
       }
-      let archiveList = 'Available Archives:\n';
-      archivedSessions.forEach((archive, index) => {
-        archiveList += `${index + 1}. ${archive.date} - ${archive.data.split('\n')[0]}... (Click to download)\n`;
-      });
-      const choice = prompt(archiveList + '\nEnter the number of the archive to download (1-' + archivedSessions.length + '), or cancel to exit:');
-      const index = parseInt(choice) - 1;
-      if (index >= 0 && index < archivedSessions.length) {
-        const archive = archivedSessions[index];
-        const blob = new Blob([archive.data], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `gym_sessions_${archive.date}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } else if (choice !== null) {
-        alert('Invalid selection.');
+      
+      // Toggle visibility of the archives container
+      archivesContainer.classList.toggle('hidden');
+
+      // Populate the list only if it's visible and currently empty
+      if (!archivesContainer.classList.contains('hidden') && archiveList.innerHTML === '') {
+        archivedSessions.forEach((archive, index) => {
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          
+          // Use a Data URI to create a link that opens the text content in a new tab
+          const dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(archive.data);
+          a.href = dataUri;
+          a.target = '_blank'; // Open in a new tab
+          a.textContent = `View Archive from ${archive.date}`;
+          a.className = 'text-blue-600 hover:text-blue-800 hover:underline';
+          
+          li.appendChild(a);
+          archiveList.appendChild(li);
+        });
       }
     });
 
