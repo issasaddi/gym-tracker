@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gym Session Tracker</title>
-    
     <link rel="manifest" href="manifest.json">
-
     <link rel="stylesheet" href="output.css">
-
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
   <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
@@ -30,17 +27,33 @@
 
     <div id="archivesContainer" class="hidden mt-4">
         <h2 class="text-lg font-semibold mb-2">Archived Sessions</h2>
-        <ul id="archiveList" class="list-disc pl-5 max-h-60 overflow-y-auto">
-            </ul>
+        <ul id="archiveList" class="list-disc pl-5 max-h-60 overflow-y-auto"></ul>
     </div>
   </div>
 
   <script>
-    // Load sessions and archives from localStorage
     let sessions = JSON.parse(localStorage.getItem('gymSessions')) || [];
     let archivedSessions = JSON.parse(localStorage.getItem('archivedSessions')) || [];
 
-    // Update UI with session data
+    // NEW: A dedicated function to render the list of archives
+    function renderArchiveList() {
+      const archiveList = document.getElementById('archiveList');
+      archiveList.innerHTML = ''; // Clear the list to prevent duplicates
+      archivedSessions.forEach((archive) => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        
+        const dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(archive.data);
+        a.href = dataUri;
+        a.target = '_blank';
+        a.textContent = `View Archive from ${archive.date}`;
+        a.className = 'text-blue-600 hover:text-blue-800 hover:underline';
+        
+        li.appendChild(a);
+        archiveList.appendChild(li);
+      });
+    }
+
     function updateUI() {
       const sessionCount = document.getElementById('sessionCount');
       const sessionList = document.getElementById('sessionList');
@@ -56,7 +69,6 @@
         sessionList.appendChild(li);
       });
 
-      // Add event listeners for edit buttons
       document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           const index = btn.getAttribute('data-index');
@@ -72,16 +84,18 @@
         });
       });
 
-      // Check if sessions reached 12 and prompt for payment
       if (sessions.length >= 12 && !localStorage.getItem('paymentConfirmed')) {
         const confirmed = confirm('You have reached 12 sessions. Have you paid 650RON to your trainer?');
         if (confirmed) {
           const archiveDate = new Date().toISOString().split('T')[0];
-          // Keep the raw data for viewing, and a formatted version for the text file
           const rawData = sessions.slice(0, 12); 
           const formattedData = rawData.map(date => new Date(date).toLocaleDateString()).join('\n');
+          
           archivedSessions.push({ date: archiveDate, data: formattedData });
           localStorage.setItem('archivedSessions', JSON.stringify(archivedSessions));
+          
+          // MODIFIED: Call the render function immediately after creating a new archive
+          renderArchiveList();
 
           const blob = new Blob([formattedData], { type: 'text/plain' });
           const url = URL.createObjectURL(blob);
@@ -105,7 +119,6 @@
       }
     }
 
-    // Validate date format
     function isValidDate(dateString) {
       const regex = /^\d{4}-\d{2}-\d{2}$/;
       if (!regex.test(dateString)) return false;
@@ -113,7 +126,6 @@
       return date instanceof Date && !isNaN(date);
     }
 
-    // Log a new session
     document.getElementById('logSession').addEventListener('click', () => {
       sessions.push(new Date().toISOString());
       localStorage.setItem('gymSessions', JSON.stringify(sessions));
@@ -123,7 +135,6 @@
       updateUI();
     });
 
-    // Clear all sessions
     document.getElementById('clearSessions').addEventListener('click', () => {
       if (confirm('Are you sure you want to clear all sessions?')) {
         sessions = [];
@@ -133,42 +144,25 @@
       }
     });
 
-    // MODIFIED: View and link to archives
     document.getElementById('viewArchives').addEventListener('click', () => {
       const archivesContainer = document.getElementById('archivesContainer');
-      const archiveList = document.getElementById('archiveList');
 
-      if (archivedSessions.length === 0) {
+      if (archivedSessions.length === 0 && archivesContainer.classList.contains('hidden')) {
         alert('No archived sessions available.');
         return;
       }
       
-      // Toggle visibility of the archives container
       archivesContainer.classList.toggle('hidden');
 
-      // Populate the list only if it's visible and currently empty
-      if (!archivesContainer.classList.contains('hidden') && archiveList.innerHTML === '') {
-        archivedSessions.forEach((archive, index) => {
-          const li = document.createElement('li');
-          const a = document.createElement('a');
-          
-          // Use a Data URI to create a link that opens the text content in a new tab
-          const dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(archive.data);
-          a.href = dataUri;
-          a.target = '_blank'; // Open in a new tab
-          a.textContent = `View Archive from ${archive.date}`;
-          a.className = 'text-blue-600 hover:text-blue-800 hover:underline';
-          
-          li.appendChild(a);
-          archiveList.appendChild(li);
-        });
+      // MODIFIED: Re-render the list every time it's shown to ensure it's up to date
+      if (!archivesContainer.classList.contains('hidden')) {
+        renderArchiveList();
       }
     });
 
-    // Initialize UI
+    // Initial UI setup
     updateUI();
 
-    // Register service worker for PWA
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/gym-tracker/sw.js', { scope: '/gym-tracker/' })
         .then(registration => console.log('Service Worker registered with scope:', registration.scope))
